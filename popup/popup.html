@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Mini Modifier</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <div class="header">
+      <h1>Mini Modifier</h1>
+    </div>
+
+    <div id="status" class="status hidden"></div>
+
+    <!-- Tab Navigation -->
+    <div class="tab-nav">
+      <button id="modifyTab" class="tab-btn active">Modify Response</button>
+      <button id="redirectTab" class="tab-btn">Redirect Request</button>
+    </div>
+
+    <!-- Modify Response Tab Content -->
+    <div id="modifyContent" class="tab-content active">
+      <div class="form-group">
+        <label for="urlSelect">Request URL</label>
+        <div class="url-input-container">
+          <select id="urlSelect" class="url-select">
+            <option value="">
+              -- Choose predefined URL or enter manually --
+            </option>
+          </select>
+          <input type="text" id="requestUrl" class="url-input" />
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="newResponse">Response Body</label>
+        <div class="response-input-container">
+          <select id="responseSelect" class="response-select">
+            <option value="">
+              -- Choose predefined response or enter manually --
+            </option>
+          </select>
+          <textarea id="newResponse"></textarea>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="modeSelect">Mode</label>
+        <select id="modeSelect">
+          <option value="replace">Replace entirely</option>
+          <option value="merge">Merge with original</option>
+        </select>
+      </div>
+
+      <button id="toggleBtn" class="toggle-btn disabled">
+        Enable Interception
+      </button>
+    </div>
+
+    <!-- Redirect Request Tab Content -->
+    <div id="redirectContent" class="tab-content">
+      <div class="form-group">
+        <label for="sourceUrlSelect">Source URL (to intercept)</label>
+        <div class="url-input-container">
+          <select id="sourceUrlSelect" class="url-select">
+            <option value="">
+              -- Choose predefined URL or enter manually --
+            </option>
+          </select>
+          <input
+            type="text"
+            id="sourceUrl"
+            class="url-input"
+            placeholder="https://api.example.com/data"
+          />
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="targetUrlSelect">Target URL (redirect to)</label>
+        <div class="url-input-container">
+          <select id="targetUrlSelect" class="url-select">
+            <option value="">
+              -- Choose predefined URL or enter manually --
+            </option>
+          </select>
+          <input
+            type="text"
+            id="targetUrl"
+            class="url-input"
+            placeholder="https://api.example.com/redirect"
+          />
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="redirectMethodSelect">Request Method</label>
+        <select id="redirectMethodSelect">
+          <option value="GET">GET</option>
+          <option value="POST">POST</option>
+          <option value="PUT">PUT</option>
+          <option value="DELETE">DELETE</option>
+          <option value="PATCH">PATCH</option>
+        </select>
+      </div>
+
+      <button id="redirectToggleBtn" class="toggle-btn disabled">
+        Enable Redirect
+      </button>
+    </div>
+
+    <div class="footer">nhlua | beta 0.1</div>
+
+    <script src="popup.js"></script>
+  </body>
+</html>
