@@ -1,0 +1,35 @@
+{
+  "manifest_version": 3,
+  "name": "Mini Modifier - API Response Editor",
+  "version": "1.0.0",
+  "description": "Intercept and modify JSON API responses in real-time using Chrome DevTools Protocol",
+
+  "permissions": ["debugger", "activeTab", "storage", "scripting"],
+
+  "background": {
+    "service_worker": "/bg/bg.js"
+  },
+
+  "action": {
+    "default_popup": "/popup/popup.html",
+    "default_title": "Mini Modifier",
+    "default_icon": {
+      "48": "/icons/icon48.png",
+      "64": "/icons/icon64.png",
+      "128": "/icons/icon128.png"
+    }
+  },
+
+  "icons": {
+    "48": "/icons/icon48.png",
+    "64": "/icons/icon64.png",
+    "128": "/icons/icon128.png"
+  },
+
+  "web_accessible_resources": [
+    {
+      "resources": ["local/saved-urls.json", "local/saved-responses.json"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}
