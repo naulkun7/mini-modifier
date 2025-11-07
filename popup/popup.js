@@ -4,16 +4,14 @@ const modifyContent = document.getElementById("modifyContent");
 const redirectContent = document.getElementById("redirectContent");
 
 const requestUrlInput = document.getElementById("requestUrl");
-const urlSelect = document.getElementById("urlSelect");
 const newResponseTextarea = document.getElementById("newResponse");
-const responseSelect = document.getElementById("responseSelect");
 const modeSelect = document.getElementById("modeSelect");
+const statusCodeInput = document.getElementById("statusCode");
+const statusCodeToggle = document.getElementById("statusCodeEnabled");
 const toggleBtn = document.getElementById("toggleBtn");
 
 const sourceUrlInput = document.getElementById("sourceUrl");
-const sourceUrlSelect = document.getElementById("sourceUrlSelect");
 const targetUrlInput = document.getElementById("targetUrl");
-const targetUrlSelect = document.getElementById("targetUrlSelect");
 const redirectMethodSelect = document.getElementById("redirectMethodSelect");
 const redirectToggleBtn = document.getElementById("redirectToggleBtn");
 
@@ -23,8 +21,66 @@ let currentTabId = null;
 let activeTab = "modify";
 let isModifyEnabled = false;
 let isRedirectEnabled = false;
-let savedUrls = [];
-let savedResponses = [];
+let lastStatusCodeValue = "";
+
+function updateStatusCodeState() {
+  const manualAllowed =
+    statusCodeToggle.checked && !isModifyEnabled && !statusCodeToggle.disabled;
+
+  statusCodeInput.readOnly = !manualAllowed;
+  statusCodeInput.toggleAttribute("readonly", !manualAllowed);
+  statusCodeInput.disabled = isModifyEnabled;
+  statusCodeInput.classList.toggle("status-input-disabled", !manualAllowed);
+
+  if (manualAllowed && !statusCodeInput.value && lastStatusCodeValue) {
+    statusCodeInput.value = lastStatusCodeValue;
+  }
+}
+
+function handleStatusCodeToggle() {
+  updateStatusCodeState();
+  if (!statusCodeToggle.checked) {
+    lastStatusCodeValue = statusCodeInput.value.trim();
+    statusCodeInput.value = "";
+  } else if (!statusCodeInput.value && lastStatusCodeValue) {
+    statusCodeInput.value = lastStatusCodeValue;
+  }
+  saveFormData();
+}
+
+function handleStatusCodeInput() {
+  if (statusCodeToggle.checked) {
+    lastStatusCodeValue = statusCodeInput.value.trim();
+  }
+  saveFormData();
+}
+
+async function maybeForceDetach() {
+  if (!currentTabId) return;
+
+  try {
+    const status = await chrome.runtime.sendMessage({
+      action: "getStatus",
+      tabId: currentTabId,
+    });
+
+    const modifyActive = Boolean(status.modifyActive);
+    const redirectActive = Boolean(status.redirectActive);
+
+    if (!modifyActive && !redirectActive) {
+      await chrome.runtime.sendMessage({
+        action: "forceDetach",
+        tabId: currentTabId,
+      });
+    }
+  } catch (error) {
+    console.warn("Failed to force detach debugger:", error);
+  }
+}
+
+async function ensureDebuggerDetached() {
+  await maybeForceDetach();
+}
 
 function showStatus(message, type = "info") {
   statusDiv.textContent = message;
@@ -45,18 +101,8 @@ function switchTab(tabName) {
 }
 
 function updateStatus() {
-  if (activeTab === "modify") {
-    if (isModifyEnabled) {
-      showStatus("Modify Response: Enabled", "success");
-    } else {
-      showStatus("Ready to modify responses", "info");
-    }
-  } else if (activeTab === "redirect") {
-    if (isRedirectEnabled) {
-      showStatus("Redirect Request: Enabled", "success");
-    } else {
-      showStatus("Ready to redirect requests", "info");
-    }
+  if (!statusDiv.classList.contains("error")) {
+    hideStatus();
   }
 }
 
@@ -76,88 +122,45 @@ function updateToggleButton() {
     redirectToggleBtn.textContent = "Enable";
     redirectToggleBtn.className = "toggle-btn disabled";
   }
+
+  updateEnabledStyles();
+  updateFormInteractivity();
 }
 
-async function loadSavedUrls() {
-  try {
-    const response = await fetch(
-      chrome.runtime.getURL("../local/saved-urls.json")
-    );
-    const data = await response.json();
-
-    savedUrls = data.savedUrls || [];
-
-    populateUrlDropdown();
-  } catch (error) {
-    console.warn("Failed to load saved URLs:", error);
-    savedUrls = [];
-  }
+function updateEnabledStyles() {
+  modifyContent.classList.toggle("enabled-indicator", isModifyEnabled);
+  redirectContent.classList.toggle(
+    "enabled-indicator",
+    isRedirectEnabled
+  );
 }
 
-function populateUrlDropdown() {
-  urlSelect.innerHTML =
-    '<option value="">-- Choose predefined URL or enter manually --</option>';
-
-  if (savedUrls.length > 0) {
-    savedUrls.forEach((urlData) => {
-      const option = document.createElement("option");
-      option.value = urlData.url;
-      option.textContent = urlData.name || urlData.url;
-      if (urlData.description) {
-        option.title = urlData.description;
-      }
-      urlSelect.appendChild(option);
-    });
-  }
+function setDisabled(elements, disabled) {
+  elements.forEach((el) => {
+    if (el) {
+      el.disabled = disabled;
+    }
+  });
 }
 
-function handleUrlSelection() {
-  const selectedUrl = urlSelect.value;
-  if (selectedUrl) {
-    requestUrlInput.value = selectedUrl;
-  }
-  saveFormData();
+function updateModifyInputsState() {
+  const disabled = isModifyEnabled;
+  setDisabled([requestUrlInput, newResponseTextarea, modeSelect], disabled);
+  statusCodeToggle.disabled = disabled;
+  updateStatusCodeState();
 }
 
-async function loadSavedResponses() {
-  try {
-    const response = await fetch(
-      chrome.runtime.getURL("../local/saved-responses.json")
-    );
-    const data = await response.json();
-
-    savedResponses = data.savedResponses || [];
-
-    populateResponseDropdown();
-  } catch (error) {
-    console.warn("Failed to load saved responses:", error);
-    savedResponses = [];
-  }
+function updateRedirectInputsState() {
+  const disabled = isRedirectEnabled;
+  setDisabled(
+    [sourceUrlInput, targetUrlInput, redirectMethodSelect],
+    disabled
+  );
 }
 
-function populateResponseDropdown() {
-  responseSelect.innerHTML =
-    '<option value="">-- Choose predefined response or enter manually --</option>';
-
-  if (savedResponses.length > 0) {
-    savedResponses.forEach((responseData) => {
-      const option = document.createElement("option");
-      option.value = responseData.response;
-      option.textContent = responseData.name || "Unnamed Response";
-      if (responseData.description) {
-        option.title = responseData.description;
-      }
-      responseSelect.appendChild(option);
-    });
-  }
-}
-
-function handleResponseSelection() {
-  const selectedResponse = responseSelect.value;
-  if (selectedResponse) {
-    newResponseTextarea.value = selectedResponse;
-  }
-  saveFormData();
+function updateFormInteractivity() {
+  updateModifyInputsState();
+  updateRedirectInputsState();
 }
 
 function hideStatus() {
@@ -169,8 +172,8 @@ async function saveFormData() {
     requestUrl: requestUrlInput.value.trim(),
     newResponse: newResponseTextarea.value.trim(),
     mode: modeSelect.value,
-    selectedUrlOption: urlSelect.value,
-    selectedResponseOption: responseSelect.value,
+    statusCode: statusCodeInput.value.trim(),
+    statusCodeEnabled: statusCodeToggle.checked,
   };
 
   try {
@@ -184,34 +187,25 @@ async function loadFormData() {
   try {
     const result = await chrome.storage.local.get(["formData"]);
     const data = result.formData;
+    const statusCodeEnabled = data
+      ? data.statusCodeEnabled !== undefined
+        ? Boolean(data.statusCodeEnabled)
+        : Boolean((data.statusCode || "").trim())
+      : false;
 
     if (data) {
       requestUrlInput.value = data.requestUrl || "";
       newResponseTextarea.value = data.newResponse || "";
       modeSelect.value = data.mode || "replace";
-
-      if (data.selectedUrlOption) {
-        urlSelect.value = data.selectedUrlOption;
-      } else if (data.requestUrl) {
-        const matchingOption = Array.from(urlSelect.options).find(
-          (option) => option.value === data.requestUrl
-        );
-        if (matchingOption) {
-          urlSelect.value = data.requestUrl;
-        }
-      }
-
-      if (data.selectedResponseOption) {
-        responseSelect.value = data.selectedResponseOption;
-      } else if (data.newResponse) {
-        const matchingResponseOption = Array.from(responseSelect.options).find(
-          (option) => option.value === data.newResponse
-        );
-        if (matchingResponseOption) {
-          responseSelect.value = data.newResponse;
-        }
-      }
+      statusCodeInput.value = data.statusCode || "";
+      lastStatusCodeValue = statusCodeInput.value.trim();
+    } else {
+      statusCodeInput.value = "";
+      lastStatusCodeValue = "";
     }
+
+    statusCodeToggle.checked = statusCodeEnabled;
+    updateStatusCodeState();
   } catch (error) {
     console.warn("Failed to load form data:", error);
   }
@@ -220,6 +214,7 @@ async function loadFormData() {
 function validateForm() {
   const url = requestUrlInput.value.trim();
   const response = newResponseTextarea.value.trim();
+  const statusCodeRaw = statusCodeInput.value.trim();
 
   try {
     new URL(url);
@@ -237,6 +232,23 @@ function validateForm() {
   } catch (jsonError) {
     console.warn("Invalid JSON format:", jsonError.message);
     return { valid: false, error: "Invalid JSON format in response" };
+  }
+
+  if (statusCodeToggle.checked) {
+    if (!statusCodeRaw) {
+      return { valid: false, error: "Enter a status code or disable the toggle" };
+    }
+    const parsedCode = Number.parseInt(statusCodeRaw, 10);
+    if (
+      !Number.isInteger(parsedCode) ||
+      parsedCode < 100 ||
+      parsedCode > 599
+    ) {
+      return {
+        valid: false,
+        error: "Status code must be between 100 and 599",
+      };
+    }
   }
 
   return { valid: true };
@@ -264,7 +276,11 @@ async function checkStatus() {
       tabId: currentTabId,
     });
 
-    isModifyEnabled = response.isAttached;
+    isModifyEnabled =
+      typeof response.modifyActive === "boolean"
+        ? response.modifyActive
+        : Boolean(response.isAttached);
+    isRedirectEnabled = Boolean(response.redirectActive);
     updateToggleButton();
     updateStatus();
   } catch (error) {
@@ -281,7 +297,8 @@ async function toggleInterception() {
   }
 }
 
-async function enableInterception() {
+async function enableInterception(options = {}) {
+  const { silent = false } = options;
   const validation = validateForm();
   if (!validation.valid) {
     showStatus(validation.error, "error");
@@ -296,9 +313,14 @@ async function enableInterception() {
   const url = requestUrlInput.value.trim();
   const overrideData = newResponseTextarea.value.trim();
   const mode = modeSelect.value;
+  const statusCodeOverride = statusCodeToggle.checked
+    ? statusCodeInput.value.trim() || null
+    : null;
 
-  showStatus("Enabling...", "info");
-  toggleBtn.disabled = true;
+  if (!silent) {
+    showStatus("Enabling...", "info");
+    toggleBtn.disabled = true;
+  }
 
   try {
     const response = await chrome.runtime.sendMessage({
@@ -307,12 +329,13 @@ async function enableInterception() {
       url: url,
       overrideData: overrideData,
       mode: mode,
+      statusCodeOverride,
     });
 
     if (response.success) {
       isModifyEnabled = true;
       updateToggleButton();
-      showStatus(`Enabled: ${url}`, "success");
+      hideStatus();
       await saveFormData();
     } else {
       showStatus(`Failed: ${response.error}`, "error");
@@ -321,9 +344,13 @@ async function enableInterception() {
     console.error("Failed to enable interception:", error);
     showStatus("Failed to communicate with background script", "error");
   } finally {
-    toggleBtn.disabled = false;
+    if (!silent) {
+      toggleBtn.disabled = false;
+    }
   }
 }
+
+async function refreshModifyIfActive() {}
 
 async function disableInterception() {
   if (!currentTabId) {
@@ -343,7 +370,8 @@ async function disableInterception() {
     if (response.success) {
       isModifyEnabled = false;
       updateToggleButton();
-      updateStatus();
+      await ensureDebuggerDetached();
+      hideStatus();
     } else {
       showStatus(`Failed: ${response.error}`, "error");
     }
@@ -355,29 +383,11 @@ async function disableInterception() {
   }
 }
 
-function handleSourceUrlSelection() {
-  const selectedUrl = sourceUrlSelect.value;
-  if (selectedUrl) {
-    sourceUrlInput.value = selectedUrl;
-  }
-  saveRedirectFormData();
-}
-
-function handleTargetUrlSelection() {
-  const selectedUrl = targetUrlSelect.value;
-  if (selectedUrl) {
-    targetUrlInput.value = selectedUrl;
-  }
-  saveRedirectFormData();
-}
-
 async function saveRedirectFormData() {
   const data = {
     sourceUrl: sourceUrlInput.value.trim(),
     targetUrl: targetUrlInput.value.trim(),
     method: redirectMethodSelect.value,
-    selectedSourceUrlOption: sourceUrlSelect.value,
-    selectedTargetUrlOption: targetUrlSelect.value,
   };
 
   try {
@@ -395,14 +405,7 @@ async function loadRedirectFormData() {
     if (data) {
       sourceUrlInput.value = data.sourceUrl || "";
       targetUrlInput.value = data.targetUrl || "";
-      redirectMethodSelect.value = data.method || "GET";
-
-      if (data.selectedSourceUrlOption) {
-        sourceUrlSelect.value = data.selectedSourceUrlOption;
-      }
-      if (data.selectedTargetUrlOption) {
-        targetUrlSelect.value = data.selectedTargetUrlOption;
-      }
+      redirectMethodSelect.value = data.method || "";
     }
   } catch (error) {
     console.warn("Failed to load redirect form data:", error);
@@ -420,7 +423,8 @@ async function toggleRedirect() {
 async function enableRedirect() {
   const sourceUrl = sourceUrlInput.value.trim();
   const targetUrl = targetUrlInput.value.trim();
-  const method = redirectMethodSelect.value;
+  const methodSelection = redirectMethodSelect.value.trim().toUpperCase();
+  const method = methodSelection || null;
 
   if (!sourceUrl || !targetUrl) {
     showStatus("Please enter both source and target URLs", "error");
@@ -447,7 +451,7 @@ async function enableRedirect() {
     if (response.success) {
       isRedirectEnabled = true;
       updateToggleButton();
-      showStatus(`Redirecting: ${sourceUrl} → ${targetUrl}`, "success");
+      hideStatus();
       await saveRedirectFormData();
     } else {
       showStatus(`Failed: ${response.error}`, "error");
@@ -478,7 +482,8 @@ async function disableRedirect() {
     if (response.success) {
       isRedirectEnabled = false;
       updateToggleButton();
-      updateStatus();
+      await ensureDebuggerDetached();
+      hideStatus();
     } else {
       showStatus(`Failed: ${response.error}`, "error");
     }
@@ -487,34 +492,6 @@ async function disableRedirect() {
     showStatus("Failed to communicate with background script", "error");
   } finally {
     redirectToggleBtn.disabled = false;
-  }
-}
-
-function populateRedirectDropdowns() {
-  sourceUrlSelect.innerHTML =
-    '<option value="">-- Choose predefined URL or enter manually --</option>';
-
-  targetUrlSelect.innerHTML =
-    '<option value="">-- Choose predefined URL or enter manually --</option>';
-
-  if (savedUrls.length > 0) {
-    savedUrls.forEach((urlData) => {
-      const sourceOption = document.createElement("option");
-      sourceOption.value = urlData.url;
-      sourceOption.textContent = urlData.name || urlData.url;
-      if (urlData.description) {
-        sourceOption.title = urlData.description;
-      }
-      sourceUrlSelect.appendChild(sourceOption);
-
-      const targetOption = document.createElement("option");
-      targetOption.value = urlData.url;
-      targetOption.textContent = urlData.name || urlData.url;
-      if (urlData.description) {
-        targetOption.title = urlData.description;
-      }
-      targetUrlSelect.appendChild(targetOption);
-    });
   }
 }
 
@@ -527,11 +504,6 @@ async function init() {
     return;
   }
 
-  await loadSavedUrls();
-  await loadSavedResponses();
-
-  populateRedirectDropdowns();
-
   await loadFormData();
   await loadRedirectFormData();
 
@@ -541,12 +513,11 @@ async function init() {
   redirectTab.addEventListener("click", () => switchTab("redirect"));
 
   toggleBtn.addEventListener("click", toggleInterception);
-  urlSelect.addEventListener("change", handleUrlSelection);
-  responseSelect.addEventListener("change", handleResponseSelection);
+  statusCodeInput.addEventListener("input", handleStatusCodeInput);
+  statusCodeInput.addEventListener("change", handleStatusCodeInput);
+  statusCodeToggle.addEventListener("change", handleStatusCodeToggle);
 
   redirectToggleBtn.addEventListener("click", toggleRedirect);
-  sourceUrlSelect.addEventListener("change", handleSourceUrlSelection);
-  targetUrlSelect.addEventListener("change", handleTargetUrlSelection);
 
   requestUrlInput.addEventListener("input", saveFormData);
   newResponseTextarea.addEventListener("input", saveFormData);
@@ -562,9 +533,10 @@ async function init() {
     requestUrlInput.value = "https://jsonplaceholder.typicode.com/posts/1";
     newResponseTextarea.value = '{"modified": true, "status": "intercepted"}';
     modeSelect.value = "replace";
-
-    urlSelect.value = "https://jsonplaceholder.typicode.com/posts/1";
-    responseSelect.value = '{"modified": true, "status": "intercepted"}';
+    statusCodeInput.value = "200";
+    lastStatusCodeValue = "200";
+    statusCodeToggle.checked = true;
+    updateStatusCodeState();
 
     await saveFormData();
   }

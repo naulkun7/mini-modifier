@@ -8,7 +8,6 @@ A Chrome extension that provides comprehensive API manipulation capabilities inc
 
 - **Modifies API responses**: Replace or merge JSON response data before the page receives it
 - **Redirects API requests**: Intercept requests and redirect them to different endpoints
-- **Predefined presets**: Save and reuse common URLs and responses
 - **Tabbed interface**: Organized UI for different modification types
 - **Works locally**: 100% local operation - no external servers or data transmission
 - **Per-tab control**: Enable/disable features independently for each browser tab
@@ -33,12 +32,8 @@ Perfect for testing API changes, simulating errors, or adding new features to ex
 1. **Navigate to your target website** - Open the page that makes the API call you want to intercept
 2. **Open the extension popup** - Click the Mini Modifier icon in your browser toolbar
 3. **Select "Modify Response" tab** (default tab)
-4. **Choose or enter Request URL**:
-   - Use the dropdown to select from predefined URLs, or
-   - Manually enter the exact URL (e.g., `https://api.example.com/data`)
-5. **Choose or enter JSON response**:
-   - Use the dropdown to select from predefined responses, or
-   - Write custom JSON data in the textarea
+4. **Enter the exact Request URL** (e.g., `https://api.example.com/data`)
+5. **Enter the JSON response** you want the page to receive
 6. **Choose your mode**:
    - **Merge**: Combines your JSON with the original response (your properties override existing ones)
    - **Replace**: Completely replaces the original response with your JSON
@@ -52,12 +47,8 @@ Perfect for testing against different environments, load balancing, or API versi
 
 1. **Navigate to your target website**
 2. **Open the extension popup** and select **"Redirect Request" tab**
-3. **Set Source URL** (to intercept):
-   - Use the dropdown to select from predefined URLs, or
-   - Manually enter the URL you want to intercept
-4. **Set Target URL** (redirect destination):
-   - Use the dropdown to select from predefined URLs, or
-   - Manually enter the destination URL
+3. **Set Source URL** (to intercept) by typing the full endpoint
+4. **Set Target URL** (redirect destination) with the URL you want to serve instead
 5. **Choose Request Method**: GET, POST, PUT, DELETE, or PATCH
 6. **Click Enable** - The extension will start redirecting matching requests
 7. **Make requests** - Any matching requests will be redirected to your target URL
@@ -120,51 +111,13 @@ Result: Test v2 API responses without changing application code
 - ✅ **Tabbed interface** - Organized UI for response modification and request redirection
 - ✅ **Response modification** - JSON merge/replace modes with real-time validation
 - ✅ **Request redirection** - Redirect API calls to different endpoints
-- ✅ **Predefined presets** - Save and reuse common URLs and JSON responses
-- ✅ **Flexible input** - Dropdown selection or manual entry for all fields
-- ✅ **Persistent settings** - All selections automatically saved and restored
+- ✅ **Concurrent modes** - Run response modification and redirection simultaneously per tab
+- ✅ **Direct input workflow** - Type endpoints and payloads inline without managing preset files
+- ✅ **Persistent settings** - All inputs automatically saved and restored per browser profile
 - ✅ **Per-tab operation** - Each tab can have different settings
 - ✅ **Exact URL matching** - Precise control over which requests to intercept
 - ✅ **Status indicators** - Clear feedback about active features
 - ✅ **Error handling** - Graceful fallbacks when operations fail
-
-## Configuration Files
-
-The extension includes two JSON configuration files for presets:
-
-### `/local/saved-urls.json`
-
-Store frequently used API endpoints:
-
-```json
-{
-  "savedUrls": [
-    {
-      "id": "api-users",
-      "name": "User API",
-      "url": "https://api.example.com/users/1",
-      "description": "User profile endpoint"
-    }
-  ]
-}
-```
-
-### `/local/saved-responses.json`
-
-Store common JSON responses:
-
-```json
-{
-  "savedResponses": [
-    {
-      "id": "success-response",
-      "name": "Success Response",
-      "response": "{\"status\": \"success\", \"data\": {\"modified\": true}}",
-      "description": "Standard success response"
-    }
-  ]
-}
-```
 
 ## Notes & Limitations
 
@@ -173,7 +126,6 @@ Store common JSON responses:
 - **Uncompressed responses only**: Response modification works with uncompressed JSON responses (no gzip/deflate/brotli support yet)
 - **Exact URL matching**: URLs must match exactly - query parameters, protocols, etc. must be identical
 - **JSON responses only**: Response modification currently designed for JSON APIs (not HTML, XML, or other formats)
-- **Single operation per tab**: Each tab can use either response modification OR request redirection (not both simultaneously)
 - **Basic redirect**: Request redirection uses simple URL matching and HTTP 302 redirects
 
 ### Browser Behavior
@@ -244,13 +196,6 @@ Store common JSON responses:
 - **Load balancing**: Distribute requests across multiple endpoints
 - **Local development**: Redirect to local development servers
 
-### Working with Presets
-
-- Edit `/local/saved-urls.json` to add your frequently used endpoints
-- Edit `/local/saved-responses.json` to save common test responses
-- Use descriptive names and descriptions for easy identification
-- Reload the extension after editing JSON files
-
 ### Working with Authentication
 
 - The extension preserves original headers (including auth tokens)
@@ -265,7 +210,6 @@ Store common JSON responses:
 - **Compression support**: Handle gzip/deflate/brotli compressed responses
 - **Advanced URL patterns**: Support wildcards and regex patterns for URLs
 - **Request body modification**: Modify request payloads and headers (not just responses)
-- **Simultaneous operations**: Enable response modification and request redirection together
 - **Response delay simulation**: Add artificial delays for testing
 - **Conditional redirects**: Redirect based on request headers, methods, or content
 - **Find & Replace mode**: Text manipulation before JSON parsing
